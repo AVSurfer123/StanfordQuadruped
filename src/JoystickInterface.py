@@ -40,7 +40,8 @@ class JoystickInterface:
             # "dpadx": dpadx,
             # "x": x,
             # "square": square,
-            "circle": 0,
+            "left_bump": 0,
+            "right_bump": 0,
             # "triangle": triangle,
             "message_rate": MESSAGE_RATE,
         }
@@ -48,11 +49,14 @@ class JoystickInterface:
         report = self.gamepad.read(64)
         if report:
             event = [r - 256 if r > 127 else r for r in report]
+            # print(f"Gamepad: {len(event)}", event)
             msg["lx"] = event[3] / 127
             msg["ly"] = event[4] / 127
+            msg["ry"] = event[5] / 127
             msg["rx"] = event[6] / 127
             msg["L1"] = event[7]
-            msg["circle"] = event[9]
+            msg["left_bump"] = event[8]
+            msg["right_bump"] = event[9]
             msg["R1"] = event[10]
 
         command = Command(height=self.config.default_z_ref)
@@ -60,8 +64,8 @@ class JoystickInterface:
         ####### Handle discrete commands ########
         activate_toggle = msg["L1"] > 0
         deactivate_toggle = msg["L1"] < 0
-        trot_toggle = msg["circle"] <= 0
-        walk_toggle = msg["circle"] > 0
+        trot_toggle = msg["right_bump"] <= 0
+        walk_toggle = msg["right_bump"] > 0
         stand_toggle = msg["R1"] < 0
         move_toggle = msg["R1"] > 0
 
@@ -94,7 +98,7 @@ class JoystickInterface:
         message_rate = MESSAGE_RATE
         message_dt = 1.0 / message_rate
 
-        pitch = 0
+        pitch = msg["ry"] * self.config.max_pitch
         deadbanded_pitch = deadband(pitch, self.config.pitch_deadband)
         pitch_rate = clipped_first_order_filter(
             state.pitch,
