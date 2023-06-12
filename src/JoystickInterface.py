@@ -18,6 +18,7 @@ class JoystickInterface:
         self.prev_walk_toggle = False
         self.prev_stand_toggle = True
         self.prev_move_toggle = False
+        self.prev_fetch_toggle = False
 
         self.gamepad = hid.device()
         for device in hid.enumerate():
@@ -64,8 +65,9 @@ class JoystickInterface:
         ####### Handle discrete commands ########
         activate_toggle = msg["L1"] > 0
         deactivate_toggle = msg["L1"] < 0
-        trot_toggle = msg["right_bump"] <= 0
+        trot_toggle = msg["right_bump"] == 0
         walk_toggle = msg["right_bump"] > 0
+        fetch_toggle = msg["right_bump"] < 0
         stand_toggle = msg["R1"] < 0
         move_toggle = msg["R1"] > 0
 
@@ -79,12 +81,15 @@ class JoystickInterface:
 
         command.stand_event = stand_toggle and (self.prev_stand_toggle == False)
 
+        command.fetch_event = fetch_toggle and ((not self.prev_fetch_toggle and move_toggle) or move_event)
+
         self.prev_activate_toggle = activate_toggle
         self.prev_deactivate_toggle = deactivate_toggle
         self.prev_trot_toggle = trot_toggle
         self.prev_walk_toggle = walk_toggle
         self.prev_stand_toggle = stand_toggle
         self.prev_move_toggle = move_toggle
+        self.prev_fetch_toggle = fetch_toggle
 
         # print(command.activate_event, command.deactivate_event, command.trot_event, command.walk_event, command.stand_event)
 
