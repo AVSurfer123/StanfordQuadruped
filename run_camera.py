@@ -70,16 +70,16 @@ class OakCamera:
         max_contour = max(contours, key=lambda c: cv2.contourArea(c))
         mu = cv2.moments(max_contour)
         center = (mu['m10'] / (mu['m00'] + 1e-5), mu['m01'] / (mu['m00'] + 1e-5))
-        print("Max contour center:", center)
+        # print("Max contour center:", center)
         max_contour_img = cv2.drawContours(frame.copy(), [max_contour], -1, (255, 0, 0), 3)
         cv2.circle(max_contour_img, (int(center[0]), int(center[1])), 10, (0, 255, 0), -1)
         imshow("filtered_contour.png", max_contour_img)
 
         img_center = self.SHAPE / 2.0
         yaw_diff, pitch_diff = (center - img_center) / img_center
-        print(yaw_diff, -pitch_diff)
+        # print(yaw_diff, -pitch_diff)
 
-        imshow("filtered_contour.png", max_contour_img, 1)
+        imshow("filtered_contour.png", max_contour_img, 2)
         return yaw_diff, -pitch_diff
 
     def run(self):

@@ -79,7 +79,10 @@ def main(FLAGS):
                     hardware_interface.activate()
                     time.sleep(0.1)
                     state.activation = 1
-                    continue
+                elif command.home_event:
+                    print("Homing motors manually")
+                    hardware_interface.home_motors()
+                    time.sleep(5)
             elif state.activation == 1:
                 now = time.time()
                 if FLAGS.log:

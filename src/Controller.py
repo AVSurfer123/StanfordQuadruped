@@ -22,6 +22,7 @@ class Controller:
         self.config = config
 
         self.smoothed_yaw = 0.0  # for REST mode only
+        self.smoothed_pitch = 0
         self.inverse_kinematics = inverse_kinematics
 
         self.contact_modes = np.zeros(4)
@@ -196,15 +197,20 @@ class Controller:
                 yaw_rate = clipped_first_order_filter(
                     self.smoothed_yaw,
                     yaw_diff,
-                    .2,
                     .1,
+                    10,
                 )
-                self.smoothed_yaw += .1 * yaw_rate
-                print("yaw rate:", yaw_rate)
+                self.smoothed_yaw += yaw_rate
+                # print("yaw rate:", yaw_rate)
                 # self.smoothed_yaw = .5 * yaw_diff + .01 * (yaw_diff - self.last_yaw_diff) / self.config.dt
                 # self.smoothed_yaw = np.clip(self.smoothed_yaw, -max_stance_yaw, max_stance_yaw)
                 # self.last_yaw_diff = yaw_diff
-                print("smoothed yaw:", self.smoothed_yaw)
+                # print("smoothed yaw:", self.smoothed_yaw)
+            if pitch_diff is not None:
+                pitch_rate = clipped_first_order_filter(self.smoothed_pitch, pitch_diff, .05, 20)
+                self.smoothed_pitch += pitch_rate
+                # print(pitch_diff, pitch_rate, self.smoothed_pitch)
+
             # Set the foot locations to the default stance plus the standard height
             state.foot_locations = (
                 self.config.default_stance
@@ -212,7 +218,7 @@ class Controller:
             )
             # Apply the desired body rotation
             state.final_foot_locations = (
-                euler2mat(command.roll, command.pitch, self.smoothed_yaw)
+                euler2mat(command.roll, self.smoothed_pitch, self.smoothed_yaw)
                 @ state.foot_locations
             )
             state.joint_angles = self.inverse_kinematics(
