@@ -49,19 +49,19 @@ class Controller:
             BehaviorState.TROT: BehaviorState.TROT,
             BehaviorState.WALK: BehaviorState.TROT,
             BehaviorState.REST: BehaviorState.TROT,
-            BehaviorState.FETCH: BehaviorState.TROT,
+            BehaviorState.TRACK: BehaviorState.TROT,
         }
         self.walk_transition_mapping = {
             BehaviorState.WALK: BehaviorState.WALK,
             BehaviorState.TROT: BehaviorState.WALK,
             BehaviorState.REST: BehaviorState.WALK,
-            BehaviorState.FETCH: BehaviorState.WALK,
+            BehaviorState.TRACK: BehaviorState.WALK,
         }
         self.stand_transition_mapping = {
             BehaviorState.REST: BehaviorState.REST,
             BehaviorState.TROT: BehaviorState.REST,
             BehaviorState.WALK: BehaviorState.REST,
-            BehaviorState.FETCH: BehaviorState.REST,
+            BehaviorState.TRACK: BehaviorState.REST,
         }
 
         self.last_yaw_diff = 0
@@ -119,9 +119,9 @@ class Controller:
             state.behavior_state = self.walk_transition_mapping[state.behavior_state]
         elif command.stand_event:
             state.behavior_state = self.stand_transition_mapping[state.behavior_state]
-        elif command.fetch_event:
-            print("Switching to FETCH")
-            state.behavior_state = BehaviorState.FETCH
+        elif command.track_event:
+            print("Switching to TRACK")
+            state.behavior_state = BehaviorState.TRACK
 
         if state.behavior_state == BehaviorState.TROT:
             state.foot_locations, contact_modes = self.step_gait(state, command)
@@ -186,9 +186,9 @@ class Controller:
                 state.final_foot_locations, self.config
             )
 
-        elif state.behavior_state == BehaviorState.FETCH:
+        elif state.behavior_state == BehaviorState.TRACK:
             if self.cam is None:
-                print("ERROR: camera is not connected but you want to perform fetch!")
+                print("ERROR: camera is not connected but you want to perform track!")
                 return
 
             yaw_diff, pitch_diff = self.cam.run_once()

@@ -17,11 +17,12 @@ class Command:
         self.stand_event = False
         self.activate_event = False
         self.deactivate_event = False
-        self.fetch_event = False
+        self.track_event = False
         self.home_event = False
+        self.auton_event = False
 
     def __str__(self):
-        return "vx: {} vy: {} wz: {} height: {} pitch: {} roll: {} hop_event: {} trot_event: {} fetch_event: {} home event: {}".format(
+        return "vx: {} vy: {} wz: {} height: {} pitch: {} roll: {} hop_event: {} trot_event: {} track_event: {} home event: {}".format(
             self.horizontal_velocity[0],
             self.horizontal_velocity[1],
             self.yaw_rate,
@@ -31,6 +32,6 @@ class Command:
             self.hop_event,
             self.trot_event,
             self.activate_event,
-            self.fetch_event,
+            self.track_event,
             self.home_event
         )

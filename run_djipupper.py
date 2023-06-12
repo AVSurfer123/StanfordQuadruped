@@ -99,6 +99,8 @@ def main(FLAGS):
                         time.sleep(0.1)
                         state.activation = 0
                         continue
+                    if command.auton_event:
+                        command = get_auton_command(state)
                     controller.run(state, command)
                     hardware_interface.set_cartesian_positions(
                         state.final_foot_locations
@@ -109,6 +111,8 @@ def main(FLAGS):
             print("Closing log file")
             log_file.close()
 
+def get_auton_command(state):
+    return
 
 def summarize_config(config):
     # Print summary of configuration to console for tuning purposes
