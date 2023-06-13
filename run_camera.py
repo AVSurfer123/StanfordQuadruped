@@ -82,6 +82,8 @@ class OakCamera:
             return None, None
 
         max_contour = max(contours, key=lambda c: cv2.contourArea(c))
+        if cv2.contourArea(max_contour) < 1000:
+            return None, None
         mu = cv2.moments(max_contour)
         center = (mu['m10'] / (mu['m00'] + 1e-5), mu['m01'] / (mu['m00'] + 1e-5))
         # print("Max contour center:", center)
@@ -101,10 +103,10 @@ class OakCamera:
         print("Angles:", yaw_diff, pitch_diff)
         if yaw_diff is not None:
             self.yaw_rate = clipped_first_order_filter(
-                self.smoothed_yaw,
+                0,
                 yaw_diff,
-                .1,
-                10,
+                .5, # .1 for standing, .5 for walking
+                1.5, # 10 for standing, 1.5 for walking
             )
             self.smoothed_yaw += self.yaw_rate
             # print("yaw rate:", yaw_rate)
@@ -113,8 +115,9 @@ class OakCamera:
             # self.last_yaw_diff = yaw_diff
             # print("smoothed yaw:", self.smoothed_yaw)
         if pitch_diff is not None:
-            pitch_rate = clipped_first_order_filter(self.smoothed_pitch, pitch_diff, .05, 20)
+            pitch_rate = clipped_first_order_filter(0, pitch_diff, .05, 20)
             self.smoothed_pitch += pitch_rate
+            # self.smoothed_pitch = pitch_diff * config.max_pitch
             # print(pitch_diff, pitch_rate, self.smoothed_pitch)
 
     def send_command(self, command):
@@ -123,25 +126,35 @@ class OakCamera:
 
     def run(self):
         self.sock = socket.create_connection(("localhost", 9999))
+        moving = True
         while True:
             self.update_setpoint()
-            command = Command(config.default_z_ref)
-            command.yaw_rate = self.yaw_rate
-            command.yaw = self.smoothed_yaw
-            command.pitch = self.smoothed_pitch
-            command.horizontal_velocity[0] = .2
-            command.trot_event = True
-            command.stand_event = False
-            # command.stand_event = True
-            print("Sending:", command)
-            self.send_command(command)
-            time.sleep(.5)
-            command.trot_event = False
-            command.stand_event = True
-            command.yaw = 0
-            # command.pitch = 0
-            self.send_command(command)
-            time.sleep(1)
+            if moving:
+                command = Command(config.default_z_ref)
+                command.yaw_rate = -self.yaw_rate
+                # command.yaw = self.smoothed_yaw
+                command.pitch = self.smoothed_pitch
+                command.horizontal_velocity[0] = .2
+                command.trot_event = True
+                command.stand_event = False
+                # command.stand_event = True
+                print("Sending:", command)
+                self.send_command(command)
+                time.sleep(.6)
+                command.trot_event = False
+                command.stand_event = True
+                # command.yaw_rate = 0
+                # command.yaw = 0
+                # command.pitch = 0
+                self.send_command(command)
+                time.sleep(.4)
+            else:
+                command = Command(config.default_z_ref)
+                command.yaw_rate = self.yaw_rate
+                command.yaw = self.smoothed_yaw
+                command.pitch = self.smoothed_pitch
+                command.stand_event = True
+                self.send_command(command)
 
             if cv2.waitKey(1) == ord('q'):
                 break

@@ -20,6 +20,7 @@ class Command:
         self.deactivate_event = False
         self.home_event = False
         self.auton_mode = False
+        self.move_toggle = False
 
     def __str__(self):
         return "vx: {} vy: {} wz: {} height: {} yaw: {} pitch: {} roll: {} trot_event: {} home event: {} auton mode: {}".format(

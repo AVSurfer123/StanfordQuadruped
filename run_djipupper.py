@@ -2,7 +2,7 @@ import numpy as np
 import time
 from src.Controller import Controller
 from src.JoystickInterface import JoystickInterface
-from src.State import State
+from src.State import State, BehaviorState
 from djipupper import HardwareInterface
 from djipupper.IndividualConfig import SERIAL_PORT  # make the configs more consistent
 from djipupper.Config import Configuration
@@ -20,6 +20,7 @@ DIRECTORY = "logs/"
 FILE_DESCRIPTOR = "walking"
 
 auton_command = None
+server = None
 sock = None
 
 def main(FLAGS):
@@ -62,10 +63,10 @@ def main(FLAGS):
 
     if FLAGS.home:
         print("Homing motors...", end="", flush=True)
-        hardware_interface.home_motors()        
+        hardware_interface.home_motors()
         time.sleep(5)
         print("Done.")
-        
+
     print("Waiting for L1 to activate robot.")
 
     last_loop = time.time()
@@ -105,9 +106,12 @@ def main(FLAGS):
                         state.activation = 0
                         continue
                     if command.auton_mode:
-                        update_auton_command()
-                        if auton_command is not None:
+                        update_auton_command(command)
+                        if auton_command is not None and command.move_toggle:
                             command = auton_command
+                    else:
+                        global sock
+                        sock = None
                     controller.run(state, command)
                     hardware_interface.set_cartesian_positions(
                         state.final_foot_locations
@@ -118,16 +122,18 @@ def main(FLAGS):
             print("Closing log file")
             log_file.close()
 
-def update_auton_command():
+def update_auton_command(command):
+    global server
     global sock
     if sock is None:
         print("Started Autonomous Sequence")
-        server = socket.socket()
-        server.bind(("localhost", 9999))
-        server.listen(1)
+        if server is None:
+            server = socket.socket()
+            server.bind(("localhost", 9999))
+            server.listen(1)
         sock, addr = server.accept()
         sock.setblocking(False)
-    
+
     rd, _, _ = select.select([sock], [], [], 0)
     if len(rd) > 0:
         next_command = sock.recv(1024)

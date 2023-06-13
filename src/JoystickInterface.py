@@ -84,6 +84,7 @@ class JoystickInterface:
 
         command.home_event = home_toggle and not self.prev_home_toggle
         command.auton_mode = auton_toggle
+        command.move_toggle = move_toggle
 
         self.prev_activate_toggle = activate_toggle
         self.prev_deactivate_toggle = deactivate_toggle
