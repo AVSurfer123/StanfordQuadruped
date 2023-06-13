@@ -5,6 +5,7 @@ import cv2
 import depthai as dai
 import socket
 import pickle
+import time
 
 from src.Utilities import clipped_first_order_filter
 from src.Command import Command
@@ -92,11 +93,12 @@ class OakCamera:
         yaw_diff, pitch_diff = (center - img_center) / img_center
         # print(yaw_diff, -pitch_diff)
 
-        imshow("filtered_contour.png", max_contour_img, 2)
+        imshow("filtered_contour.png", max_contour_img, 1)
         return yaw_diff, -pitch_diff
 
     def update_setpoint(self):
         yaw_diff, pitch_diff = self.run_once()
+        print("Angles:", yaw_diff, pitch_diff)
         if yaw_diff is not None:
             self.yaw_rate = clipped_first_order_filter(
                 self.smoothed_yaw,
@@ -127,11 +129,19 @@ class OakCamera:
             command.yaw_rate = self.yaw_rate
             command.yaw = self.smoothed_yaw
             command.pitch = self.smoothed_pitch
-            # command.trot_event = True
-            command.stand_event = True
-
+            command.horizontal_velocity[0] = .2
+            command.trot_event = True
+            command.stand_event = False
+            # command.stand_event = True
+            print("Sending:", command)
             self.send_command(command)
-
+            time.sleep(.5)
+            command.trot_event = False
+            command.stand_event = True
+            command.yaw = 0
+            # command.pitch = 0
+            self.send_command(command)
+            time.sleep(1)
 
             if cv2.waitKey(1) == ord('q'):
                 break

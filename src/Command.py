@@ -6,7 +6,7 @@ class Command:
     """
 
     def __init__(self, height):
-        self.horizontal_velocity = np.array([0, 0])
+        self.horizontal_velocity = np.array([0.0, 0.0])
         self.yaw_rate = 0.0
         self.height = height
         self.yaw = 0
