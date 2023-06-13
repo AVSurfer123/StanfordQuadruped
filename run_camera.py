@@ -3,6 +3,14 @@
 import numpy as np
 import cv2
 import depthai as dai
+import socket
+import pickle
+
+from src.Utilities import clipped_first_order_filter
+from src.Command import Command
+from djipupper.Config import Configuration
+
+config = Configuration()
 
 def imshow(name, img, mode=2):
     if mode == 0:
@@ -17,7 +25,7 @@ class OakCamera:
     SHAPE = np.array([960, 540])
 
     def __init__(self):
-                
+
         # Create pipeline
         pipeline = dai.Pipeline()
 
@@ -47,9 +55,14 @@ class OakCamera:
         self.calib = self.device.readCalibration()
         self.K_left = np.array(self.calib.getCameraIntrinsics(dai.CameraBoardSocket.LEFT, self.SHAPE[0], self.SHAPE[1]))
 
+        self.yaw_rate = 0
+        self.smoothed_yaw = 0
+        self.smoothed_pitch = 0
+        self.sock = None
+
     def get_frame(self):
         return self.video.get().getCvFrame()
-    
+
     def run_once(self):
         frame = self.get_frame()
         frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -82,9 +95,44 @@ class OakCamera:
         imshow("filtered_contour.png", max_contour_img, 2)
         return yaw_diff, -pitch_diff
 
+    def update_setpoint(self):
+        yaw_diff, pitch_diff = self.run_once()
+        if yaw_diff is not None:
+            self.yaw_rate = clipped_first_order_filter(
+                self.smoothed_yaw,
+                yaw_diff,
+                .1,
+                10,
+            )
+            self.smoothed_yaw += self.yaw_rate
+            # print("yaw rate:", yaw_rate)
+            # self.smoothed_yaw = .5 * yaw_diff + .01 * (yaw_diff - self.last_yaw_diff) / self.config.dt
+            # self.smoothed_yaw = np.clip(self.smoothed_yaw, -max_stance_yaw, max_stance_yaw)
+            # self.last_yaw_diff = yaw_diff
+            # print("smoothed yaw:", self.smoothed_yaw)
+        if pitch_diff is not None:
+            pitch_rate = clipped_first_order_filter(self.smoothed_pitch, pitch_diff, .05, 20)
+            self.smoothed_pitch += pitch_rate
+            # print(pitch_diff, pitch_rate, self.smoothed_pitch)
+
+    def send_command(self, command):
+        command_bytes = pickle.dumps(command)
+        self.sock.sendall(command_bytes)
+
     def run(self):
+        self.sock = socket.create_connection(("localhost", 9999))
         while True:
-            self.run_once()
+            self.update_setpoint()
+            command = Command(config.default_z_ref)
+            command.yaw_rate = self.yaw_rate
+            command.yaw = self.smoothed_yaw
+            command.pitch = self.smoothed_pitch
+            # command.trot_event = True
+            command.stand_event = True
+
+            self.send_command(command)
+
+
             if cv2.waitKey(1) == ord('q'):
                 break
 
@@ -97,4 +145,4 @@ if __name__ == '__main__':
 # HSV Thresholds
 # H 13-34
 # S 100-255
-# V 64-255 
+# V 64-255

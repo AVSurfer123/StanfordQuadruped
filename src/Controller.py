@@ -11,8 +11,6 @@ from transforms3d.axangles import axangle2mat
 
 from src.StaticGait import VirtualVehicle
 
-from run_camera import OakCamera
-
 
 class Controller:
     """Controller and planner object
@@ -31,12 +29,6 @@ class Controller:
         self.stance_controller = StanceController(self.config)
         self.virtual_vehicle = VirtualVehicle()
 
-        self.cam = None
-        try:
-            self.cam = OakCamera()
-        except:
-            pass
-
         self.activate_transition_mapping = {
             BehaviorState.REST: BehaviorState.REST,
             BehaviorState.DEACTIVATED: BehaviorState.REST
@@ -49,19 +41,16 @@ class Controller:
             BehaviorState.TROT: BehaviorState.TROT,
             BehaviorState.WALK: BehaviorState.TROT,
             BehaviorState.REST: BehaviorState.TROT,
-            BehaviorState.TRACK: BehaviorState.TROT,
         }
         self.walk_transition_mapping = {
             BehaviorState.WALK: BehaviorState.WALK,
             BehaviorState.TROT: BehaviorState.WALK,
             BehaviorState.REST: BehaviorState.WALK,
-            BehaviorState.TRACK: BehaviorState.WALK,
         }
         self.stand_transition_mapping = {
             BehaviorState.REST: BehaviorState.REST,
             BehaviorState.TROT: BehaviorState.REST,
             BehaviorState.WALK: BehaviorState.REST,
-            BehaviorState.TRACK: BehaviorState.REST,
         }
 
         self.last_yaw_diff = 0
@@ -119,9 +108,6 @@ class Controller:
             state.behavior_state = self.walk_transition_mapping[state.behavior_state]
         elif command.stand_event:
             state.behavior_state = self.stand_transition_mapping[state.behavior_state]
-        elif command.track_event:
-            print("Switching to TRACK")
-            state.behavior_state = BehaviorState.TRACK
 
         if state.behavior_state == BehaviorState.TROT:
             state.foot_locations, contact_modes = self.step_gait(state, command)
@@ -177,6 +163,8 @@ class Controller:
                 self.config.default_stance
                 + np.array([0, 0, command.height])[:, np.newaxis]
             )
+            if command.yaw:
+                self.smoothed_yaw = command.yaw
             # Apply the desired body rotation
             state.final_foot_locations = (
                 euler2mat(command.roll, command.pitch, self.smoothed_yaw)
@@ -186,56 +174,16 @@ class Controller:
                 state.final_foot_locations, self.config
             )
 
-        elif state.behavior_state == BehaviorState.TRACK:
-            if self.cam is None:
-                print("ERROR: camera is not connected but you want to perform track!")
-                return
-
-            yaw_diff, pitch_diff = self.cam.run_once()
-
-            if yaw_diff is not None:
-                yaw_rate = clipped_first_order_filter(
-                    self.smoothed_yaw,
-                    yaw_diff,
-                    .1,
-                    10,
-                )
-                self.smoothed_yaw += yaw_rate
-                # print("yaw rate:", yaw_rate)
-                # self.smoothed_yaw = .5 * yaw_diff + .01 * (yaw_diff - self.last_yaw_diff) / self.config.dt
-                # self.smoothed_yaw = np.clip(self.smoothed_yaw, -max_stance_yaw, max_stance_yaw)
-                # self.last_yaw_diff = yaw_diff
-                # print("smoothed yaw:", self.smoothed_yaw)
-            if pitch_diff is not None:
-                pitch_rate = clipped_first_order_filter(self.smoothed_pitch, pitch_diff, .05, 20)
-                self.smoothed_pitch += pitch_rate
-                # print(pitch_diff, pitch_rate, self.smoothed_pitch)
-
-            # Set the foot locations to the default stance plus the standard height
-            state.foot_locations = (
-                self.config.default_stance
-                + np.array([0, 0, command.height])[:, np.newaxis]
-            )
-            # Apply the desired body rotation
-            state.final_foot_locations = (
-                euler2mat(command.roll, self.smoothed_pitch, self.smoothed_yaw)
-                @ state.foot_locations
-            )
-            state.joint_angles = self.inverse_kinematics(
-                state.final_foot_locations, self.config
-            )
-
-
         state.ticks += 1
         state.pitch = command.pitch
         state.roll = command.roll
         state.height = command.height
 
-    def set_pose_to_default(self):
+    def set_pose_to_default(self, state):
         state.foot_locations = (
             self.config.default_stance
             + np.array([0, 0, self.config.default_z_ref])[:, np.newaxis]
         )
-        state.joint_angles = controller.inverse_kinematics(
+        state.joint_angles = self.inverse_kinematics(
             state.foot_locations, self.config
         )

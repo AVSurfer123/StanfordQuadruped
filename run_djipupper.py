@@ -12,10 +12,15 @@ import argparse
 import datetime
 import os
 import msgpack
+import socket
+import pickle
+import select
 
 DIRECTORY = "logs/"
 FILE_DESCRIPTOR = "walking"
 
+auton_command = None
+sock = None
 
 def main(FLAGS):
     """Main program"""
@@ -99,8 +104,10 @@ def main(FLAGS):
                         time.sleep(0.1)
                         state.activation = 0
                         continue
-                    if command.auton_event:
-                        command = get_auton_command(state)
+                    if command.auton_mode:
+                        update_auton_command()
+                        if auton_command is not None:
+                            command = auton_command
                     controller.run(state, command)
                     hardware_interface.set_cartesian_positions(
                         state.final_foot_locations
@@ -111,8 +118,23 @@ def main(FLAGS):
             print("Closing log file")
             log_file.close()
 
-def get_auton_command(state):
-    return
+def update_auton_command():
+    global sock
+    if sock is None:
+        print("Started Autonomous Sequence")
+        server = socket.socket()
+        server.bind(("localhost", 9999))
+        server.listen(1)
+        sock, addr = server.accept()
+        sock.setblocking(False)
+    
+    rd, _, _ = select.select([sock], [], [], 0)
+    if len(rd) > 0:
+        next_command = sock.recv(1024)
+        if next_command:
+            global auton_command
+            auton_command = pickle.loads(next_command)
+            print("Got new command:", auton_command)
 
 def summarize_config(config):
     # Print summary of configuration to console for tuning purposes
