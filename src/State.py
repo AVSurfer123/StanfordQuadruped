@@ -27,4 +27,3 @@ class BehaviorState(Enum):
     HOP = 2
     FINISHHOP = 3
     WALK = 4
-    KICK = 6
